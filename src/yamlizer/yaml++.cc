@@ -3,6 +3,8 @@
 
 namespace yamlizer {
 
+token::token(::yaml_token_t t) : token_{std::move(t)} {}
+
 token::~token() {
   ::yaml_token_delete(&token_);
 }

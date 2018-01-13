@@ -7,11 +7,11 @@
 
 namespace yamlizer {
 
-class token {
+class token final {
   ::yaml_token_t token_;
 
 public:
-  token(::yaml_token_t t) : token_{std::move(t)} {}
+  token(::yaml_token_t t);
   ~token();
 
   token(const token&) = delete;
