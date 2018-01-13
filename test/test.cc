@@ -51,3 +51,19 @@ BOOST_AUTO_TEST_CASE(deserialize_scalar) {
 
   BOOST_CHECK_THROW(yamlizer::from_yaml<int>("Hello, World!"), std::exception);
 }
+
+BOOST_AUTO_TEST_CASE(deserialize_struct) {
+  struct book {
+    BOOST_HANA_DEFINE_STRUCT(book, (std::string, name), (int, price));
+  };
+
+  const auto b1 = yamlizer::from_yaml<book>(R"EOS(
+name: Gochumon wa Usagi Desuka ? Vol.1
+price: 819
+)EOS");
+  BOOST_TEST(b1.name == "Gochumon wa Usagi Desuka ? Vol.1");
+  BOOST_TEST(b1.price == 819);
+
+  BOOST_CHECK_THROW(yamlizer::from_yaml<book>("name: Gochumon wa Usagi Desuka ? Vol.1"),
+                    std::exception);
+}
