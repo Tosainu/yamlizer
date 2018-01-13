@@ -17,8 +17,8 @@ public:
   token(const token&) = delete;
   token& operator=(const token&) = delete;
 
-  token(token&&) = default;
-  token& operator=(token&&) = default;
+  token(token&& t);
+  token& operator=(token&& t);
 
   ::yaml_token_type_t type() const;
   decltype(std::declval<::yaml_token_t>().data) data() const;
@@ -35,8 +35,8 @@ public:
   parser(const parser&) = delete;
   parser& operator=(const parser&) = delete;
 
-  parser(parser&&) = default;
-  parser& operator=(parser&&) = default;
+  parser(parser&&);
+  parser& operator=(parser&&);
 
   token scan();
 };

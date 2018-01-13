@@ -9,6 +9,15 @@ token::~token() {
   ::yaml_token_delete(&token_);
 }
 
+token::token(token&& t) {
+  std::swap(token_, t.token_);
+}
+
+token& token::operator=(token&& t) {
+  std::swap(token_, t.token_);
+  return *this;
+}
+
 ::yaml_token_type_t token::type() const {
   return token_.type;
 }
@@ -27,6 +36,17 @@ parser::parser(std::string buffer) : buffer_(std::move(buffer)) {
 
 parser::~parser() {
   ::yaml_parser_delete(&parser_);
+}
+
+parser::parser(parser&& t) {
+  std::swap(buffer_, t.buffer_);
+  std::swap(parser_, t.parser_);
+}
+
+parser& parser::operator=(parser&& t) {
+  std::swap(buffer_, t.buffer_);
+  std::swap(parser_, t.parser_);
+  return *this;
 }
 
 token parser::scan() {
