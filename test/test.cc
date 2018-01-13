@@ -3,6 +3,7 @@
 
 #include <iostream>
 #include <boost/test/unit_test.hpp>
+#include "yamlizer/from_yaml.h"
 #include "yamlizer/yaml++.h"
 
 BOOST_AUTO_TEST_CASE(yamlxx) {
@@ -36,4 +37,17 @@ foo: bar
 
   t = p.scan();
   BOOST_TEST(t.type() == ::YAML_STREAM_END_TOKEN);
+}
+
+BOOST_AUTO_TEST_CASE(deserialize_scalar) {
+  const auto v1 = yamlizer::from_yaml<int>("123");
+  BOOST_TEST(v1 == 123);
+
+  const auto v2 = yamlizer::from_yaml<float>("1.23");
+  BOOST_TEST(v2 == 1.23f);
+
+  const auto v3 = yamlizer::from_yaml<std::string>("Hello, World!");
+  BOOST_TEST(v3 == "Hello, World!");
+
+  BOOST_CHECK_THROW(yamlizer::from_yaml<int>("Hello, World!"), std::exception);
 }
