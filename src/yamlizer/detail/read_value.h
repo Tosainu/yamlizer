@@ -58,6 +58,43 @@ struct read_value_impl {
     }
     return result;
   }
+
+  template <class T>
+  static auto apply(parser& p)
+      -> std::enable_if_t<boost::hana::Foldable<T>::value && !boost::hana::Struct<T>::value,
+                          T> {
+    switch (p.scan().type()) {
+      case ::YAML_BLOCK_SEQUENCE_START_TOKEN:
+        return read_value_impl::read_block_sequence<T>(p);
+
+      case ::YAML_FLOW_SEQUENCE_START_TOKEN:
+        throw std::runtime_error("ヾ(>ω<ヾﾉ三ヽ^ｼ>ω<)ﾉｼ");
+
+      default:
+        throw std::runtime_error(
+            "t.type() != YAML_BLOCK_SEQUENCE_START_TOKEN || YAML_FLOW_SEQUENCE_START_TOKEN");
+    }
+  }
+
+  template <class T>
+  static auto read_block_sequence(parser& p) {
+    using length = decltype(boost::hana::length(std::declval<T>()));
+    const auto result = boost::hana::fold_left(
+        boost::hana::range_c<std::size_t, 0u, length::value>, T{}, [&p](auto acc, auto key) {
+          if (p.scan().type() != ::YAML_BLOCK_ENTRY_TOKEN) {
+            throw std::runtime_error("t.type() != YAML_BLOCK_ENTRY_TOKEN");
+          }
+
+          boost::hana::at(acc, key) = read_value_impl::apply<
+              std::remove_reference_t<decltype(boost::hana::at(acc, key))>>(p);
+          return acc;
+        });
+
+    if (p.scan().type() != ::YAML_BLOCK_END_TOKEN) {
+      throw std::runtime_error("YAML_BLOCK_END_TOKEN");
+    }
+    return result;
+  }
 };
 
 template <class T>
