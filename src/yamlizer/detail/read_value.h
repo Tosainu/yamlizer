@@ -68,7 +68,7 @@ struct read_value_impl {
         return read_value_impl::read_block_sequence<T>(p);
 
       case ::YAML_FLOW_SEQUENCE_START_TOKEN:
-        throw std::runtime_error("ヾ(>ω<ヾﾉ三ヽ^ｼ>ω<)ﾉｼ");
+        return read_value_impl::read_flow_sequence<T>(p);
 
       default:
         throw std::runtime_error(
@@ -94,6 +94,25 @@ struct read_value_impl {
       throw std::runtime_error("YAML_BLOCK_END_TOKEN");
     }
     return result;
+  }
+
+  template <class T>
+  static auto read_flow_sequence(parser& p) {
+    using length = decltype(boost::hana::length(std::declval<T>()));
+    return boost::hana::fold_left(
+        boost::hana::range_c<std::size_t, 0u, length::value>, T{}, [&p](auto acc, auto key) {
+          boost::hana::at(acc, key) = read_value_impl::apply<
+              std::remove_reference_t<decltype(boost::hana::at(acc, key))>>(p);
+
+          const auto t = p.scan();
+          if (t.type() != ::YAML_FLOW_ENTRY_TOKEN &&
+              t.type() != ::YAML_FLOW_SEQUENCE_END_TOKEN) {
+            throw std::runtime_error(
+                "t.type() != YAML_FLOW_ENTRY_TOKEN || YAML_FLOW_SEQUENCE_END_TOKEN");
+          }
+
+          return acc;
+        });
   }
 };
 

@@ -121,3 +121,17 @@ strings:
   BOOST_TEST(a.strings.at(1) == "bar");
   BOOST_TEST(a.strings.at(2) == "baz");
 }
+
+BOOST_AUTO_TEST_CASE(deserialize_flow_sequence_of_scalar) {
+  const auto a = yamlizer::from_yaml<std::array<int, 3>>(R"EOS([1, 2, 3])EOS");
+  BOOST_TEST(a.at(0) == 1);
+  BOOST_TEST(a.at(1) == 2);
+  BOOST_TEST(a.at(2) == 3);
+}
+
+BOOST_AUTO_TEST_CASE(deserialize_mapping_of_flow_sequence) {
+  const auto a = yamlizer::from_yaml<string3>(R"EOS(strings: [foo, bar, baz])EOS");
+  BOOST_TEST(a.strings.at(0) == "foo");
+  BOOST_TEST(a.strings.at(1) == "bar");
+  BOOST_TEST(a.strings.at(2) == "baz");
+}
