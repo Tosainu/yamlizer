@@ -14,7 +14,8 @@ namespace detail {
 struct read_value_impl {
   template <class T>
   static auto apply(parser& p)
-      -> std::enable_if_t<std::is_scalar<T>::value || std::is_same<T, std::string>::value, T> {
+      -> std::enable_if_t<std::is_arithmetic<T>::value || std::is_same<T, std::string>::value,
+                          T> {
     const auto t = p.scan();
     if (t.type() == ::YAML_SCALAR_TOKEN) {
       boost::cnv::lexical_cast cnv{};
