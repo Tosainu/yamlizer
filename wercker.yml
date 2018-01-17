@@ -1,0 +1,28 @@
+box:
+  id: alpine
+  cmd: /bin/sh
+
+build:
+  steps:
+    - script:
+      name: setup packages
+      code: |
+        apk add --update build-base boost boost-dev clang clang-dev cmake ninja yaml yaml-dev
+
+    - script:
+      name: build-gcc
+      code: |
+        mkdir -p build-gcc
+        cd build-gcc
+        cmake .. -G Ninja -DCMAKE_CXX_COMPILER=g++
+        ninja -v
+        ctest --output-on-failure
+
+    - script:
+      name: build-clang
+      code: |
+        mkdir -p build-clang
+        cd build-clang
+        cmake .. -G Ninja -DCMAKE_CXX_COMPILER=g++
+        ninja -v
+        ctest --output-on-failure
