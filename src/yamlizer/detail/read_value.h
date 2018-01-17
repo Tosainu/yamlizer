@@ -38,11 +38,12 @@ struct read_value_impl {
             throw std::runtime_error("t.type() != YAML_KEY_TOKEN");
           }
 
-          const auto actual_key = read_value_impl::apply<std::string>(p);
-          if (actual_key != key.c_str()) {
+          constexpr auto key_cstr = boost::hana::to<const char*>(key);
+          const auto actual_key   = read_value_impl::apply<std::string>(p);
+          if (actual_key != key_cstr) {
             using namespace std::string_literals;
             throw std::runtime_error("key does not match: ["s + actual_key + " != "s +
-                                     key.c_str() + "]"s);
+                                     key_cstr + "]"s);
           }
 
           if (p.scan().type() != ::YAML_VALUE_TOKEN) {
