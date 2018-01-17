@@ -23,6 +23,6 @@ build:
       code: |
         mkdir -p build-clang
         cd build-clang
-        cmake .. -G Ninja -DCMAKE_CXX_COMPILER=g++
+        cmake .. -G Ninja -DCMAKE_CXX_COMPILER=clang++
         ninja -v
         ctest --output-on-failure
