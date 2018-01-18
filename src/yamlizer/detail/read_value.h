@@ -11,6 +11,12 @@
 namespace yamlizer {
 namespace detail {
 
+template <class T, std::enable_if_t<boost::hana::Foldable<T>::value, std::nullptr_t> = nullptr>
+constexpr auto make_index_range() {
+  using length_type = decltype(boost::hana::length(std::declval<T>()));
+  return boost::hana::make_range(boost::hana::size_c<0>, length_type{});
+}
+
 struct read_value_impl {
   template <class T>
   static auto apply(parser& p)
@@ -80,9 +86,8 @@ struct read_value_impl {
 
   template <class T>
   static auto read_block_sequence(parser& p) {
-    using length = decltype(boost::hana::length(std::declval<T>()));
-    const auto result = boost::hana::fold_left(
-        boost::hana::range_c<std::size_t, 0u, length::value>, T{}, [&p](auto acc, auto key) {
+    const auto result =
+        boost::hana::fold_left(make_index_range<T>(), T{}, [&p](auto acc, auto key) {
           if (p.scan().type() != ::YAML_BLOCK_ENTRY_TOKEN) {
             throw std::runtime_error("t.type() != YAML_BLOCK_ENTRY_TOKEN");
           }
@@ -100,21 +105,19 @@ struct read_value_impl {
 
   template <class T>
   static auto read_flow_sequence(parser& p) {
-    using length = decltype(boost::hana::length(std::declval<T>()));
-    return boost::hana::fold_left(
-        boost::hana::range_c<std::size_t, 0u, length::value>, T{}, [&p](auto acc, auto key) {
-          boost::hana::at(acc, key) = read_value_impl::apply<
-              std::remove_reference_t<decltype(boost::hana::at(acc, key))>>(p);
+    return boost::hana::fold_left(make_index_range<T>(), T{}, [&p](auto acc, auto key) {
+      boost::hana::at(acc, key) =
+          read_value_impl::apply<std::remove_reference_t<decltype(boost::hana::at(acc, key))>>(
+              p);
 
-          const auto t = p.scan();
-          if (t.type() != ::YAML_FLOW_ENTRY_TOKEN &&
-              t.type() != ::YAML_FLOW_SEQUENCE_END_TOKEN) {
-            throw std::runtime_error(
-                "t.type() != YAML_FLOW_ENTRY_TOKEN || YAML_FLOW_SEQUENCE_END_TOKEN");
-          }
+      const auto t = p.scan();
+      if (t.type() != ::YAML_FLOW_ENTRY_TOKEN && t.type() != ::YAML_FLOW_SEQUENCE_END_TOKEN) {
+        throw std::runtime_error(
+            "t.type() != YAML_FLOW_ENTRY_TOKEN || YAML_FLOW_SEQUENCE_END_TOKEN");
+      }
 
-          return acc;
-        });
+      return acc;
+    });
   }
 };
 
