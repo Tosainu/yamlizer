@@ -17,6 +17,12 @@ constexpr auto make_index_range() {
   return boost::hana::make_range(boost::hana::size_c<0>, length_type{});
 }
 
+template <class T, class = void>
+struct has_push_back : std::false_type {};
+template <class T>
+struct has_push_back<T, decltype(static_cast<void>(std::declval<T>().push_back(
+                            std::declval<typename T::value_type>())))> : std::true_type {};
+
 struct read_value_impl {
   template <class T>
   static auto apply(parser& p)
@@ -85,6 +91,22 @@ struct read_value_impl {
   }
 
   template <class T>
+  static auto apply(parser& p)
+      -> std::enable_if_t<has_push_back<T>::value && !std::is_same<T, std::string>::value, T> {
+    switch (p.scan().type()) {
+      case ::YAML_BLOCK_SEQUENCE_START_TOKEN:
+        return read_value_impl::read_block_sequence<T>(p);
+
+      case ::YAML_FLOW_SEQUENCE_START_TOKEN:
+        return read_value_impl::read_flow_sequence<T>(p);
+
+      default:
+        throw std::runtime_error(
+            "t.type() != YAML_BLOCK_SEQUENCE_START_TOKEN || YAML_FLOW_SEQUENCE_START_TOKEN");
+    }
+  }
+
+  template <class T>
   static auto read_block_sequence(parser& p)
       -> std::enable_if_t<boost::hana::Foldable<T>::value, T> {
     const auto result =
@@ -105,6 +127,23 @@ struct read_value_impl {
   }
 
   template <class T>
+  static auto read_block_sequence(parser& p) -> std::enable_if_t<has_push_back<T>::value, T> {
+    T result{};
+    for (;;) {
+      const auto t = p.scan();
+      if (t.type() == ::YAML_BLOCK_ENTRY_TOKEN) {
+        result.push_back(
+            read_value_impl::apply<std::remove_reference_t<typename T::value_type>>(p));
+      } else if (t.type() == ::YAML_BLOCK_END_TOKEN) {
+        break;
+      } else {
+        throw std::runtime_error("invalid token type");
+      }
+    }
+    return result;
+  }
+
+  template <class T>
   static auto read_flow_sequence(parser& p)
       -> std::enable_if_t<boost::hana::Foldable<T>::value, T> {
     return boost::hana::fold_left(make_index_range<T>(), T{}, [&p](auto acc, auto key) {
@@ -120,6 +159,26 @@ struct read_value_impl {
 
       return acc;
     });
+  }
+
+  template <class T>
+  static auto read_flow_sequence(parser& p) -> std::enable_if_t<has_push_back<T>::value, T> {
+    T result{};
+    for (;;) {
+      // TODO: support empty list
+      result.push_back(
+          read_value_impl::apply<std::remove_reference_t<typename T::value_type>>(p));
+
+      const auto t = p.scan();
+      if (t.type() == ::YAML_FLOW_SEQUENCE_END_TOKEN) {
+        break;
+      } else if (t.type() == ::YAML_FLOW_ENTRY_TOKEN) {
+        // continue
+      } else {
+        throw std::runtime_error("invalid token type");
+      }
+    }
+    return result;
   }
 };
 

@@ -3,6 +3,7 @@
 
 #include <array>
 #include <iostream>
+#include <vector>
 #include <boost/hana.hpp>
 #include <boost/hana/ext/std/array.hpp>
 #include <boost/hana/ext/std/tuple.hpp>
@@ -134,4 +135,33 @@ BOOST_AUTO_TEST_CASE(deserialize_mapping_of_flow_sequence) {
   BOOST_TEST(a.strings.at(0) == "foo");
   BOOST_TEST(a.strings.at(1) == "bar");
   BOOST_TEST(a.strings.at(2) == "baz");
+}
+
+BOOST_AUTO_TEST_CASE(deserialize_block_sequence_of_scalar_to_std_vector) {
+  const auto v = yamlizer::from_yaml<std::vector<int>>(R"EOS(
+- 0
+- 1
+- 2
+- 3
+- 4
+- 5
+)EOS");
+  BOOST_TEST(v.size() == 6u);
+  BOOST_TEST(v[0] == 0);
+  BOOST_TEST(v[1] == 1);
+  BOOST_TEST(v[2] == 2);
+  BOOST_TEST(v[3] == 3);
+  BOOST_TEST(v[4] == 4);
+  BOOST_TEST(v[5] == 5);
+}
+
+BOOST_AUTO_TEST_CASE(deserialize_flow_sequence_of_scalar_to_std_vector) {
+  const auto v = yamlizer::from_yaml<std::vector<int>>("[0, 1, 2, 3, 4, 5]");
+  BOOST_TEST(v.size() == 6u);
+  BOOST_TEST(v[0] == 0);
+  BOOST_TEST(v[1] == 1);
+  BOOST_TEST(v[2] == 2);
+  BOOST_TEST(v[3] == 3);
+  BOOST_TEST(v[4] == 4);
+  BOOST_TEST(v[5] == 5);
 }
