@@ -2,7 +2,8 @@ cmake_minimum_required(VERSION 3.5)
 
 project(yamlizer CXX)
 
-option(YAMLIZER_BUILD_UNIT_TESTS "Build unit tests" ON)
+option(YAMLIZER_BUILD_EXAMPLES   "Build example files" ON)
+option(YAMLIZER_BUILD_UNIT_TESTS "Build unit tests"    ON)
 
 if(NOT LibYAML_FOUND)
   set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_CURRENT_LIST_DIR}/cmake/Modules/")
@@ -33,4 +34,11 @@ if(YAMLIZER_BUILD_UNIT_TESTS)
     ${LibYAML_LIBRARY}
     ${Boost_UNIT_TEST_FRAMEWORK_LIBRARY})
   add_test(yamlizer-test yamlizer-test)
+endif()
+
+if(YAMLIZER_BUILD_EXAMPLES)
+  add_executable(example example/example.cc)
+  target_link_libraries(example
+    yamlizer
+    ${LibYAML_LIBRARY})
 endif()
