@@ -85,7 +85,8 @@ struct read_value_impl {
   }
 
   template <class T>
-  static auto read_block_sequence(parser& p) {
+  static auto read_block_sequence(parser& p)
+      -> std::enable_if_t<boost::hana::Foldable<T>::value, T> {
     const auto result =
         boost::hana::fold_left(make_index_range<T>(), T{}, [&p](auto acc, auto key) {
           if (p.scan().type() != ::YAML_BLOCK_ENTRY_TOKEN) {
@@ -104,7 +105,8 @@ struct read_value_impl {
   }
 
   template <class T>
-  static auto read_flow_sequence(parser& p) {
+  static auto read_flow_sequence(parser& p)
+      -> std::enable_if_t<boost::hana::Foldable<T>::value, T> {
     return boost::hana::fold_left(make_index_range<T>(), T{}, [&p](auto acc, auto key) {
       boost::hana::at(acc, key) =
           read_value_impl::apply<std::remove_reference_t<decltype(boost::hana::at(acc, key))>>(
