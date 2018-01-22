@@ -6,6 +6,8 @@
 #include <boost/convert.hpp>
 #include <boost/convert/lexical_cast.hpp>
 #include <boost/hana.hpp>
+#include <boost/hana/ext/std/array.hpp>
+#include <boost/hana/ext/std/tuple.hpp>
 #include "yamlizer/yaml++.h"
 
 namespace yamlizer {

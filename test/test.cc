@@ -5,8 +5,6 @@
 #include <iostream>
 #include <vector>
 #include <boost/hana.hpp>
-#include <boost/hana/ext/std/array.hpp>
-#include <boost/hana/ext/std/tuple.hpp>
 #include <boost/test/unit_test.hpp>
 #include "yamlizer/from_yaml.h"
 #include "yamlizer/yaml++.h"
