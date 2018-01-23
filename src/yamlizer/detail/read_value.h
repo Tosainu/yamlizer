@@ -191,20 +191,18 @@ struct read_value_impl {
       -> std::enable_if_t<has_push_back<T>::value, std::tuple<T, Iterator>> {
     T result{};
     for (auto it = begin;;) {
-      // TODO: support empty list
+      if (it->type() == ::YAML_FLOW_SEQUENCE_END_TOKEN) {
+        return std::forward_as_tuple(result, std::next(it));
+      }
+
+      if (it->type() == ::YAML_FLOW_ENTRY_TOKEN) {
+        it = std::next(it);
+      }
+
       const auto r =
           read_value_impl::apply<std::remove_reference_t<typename T::value_type>>(it, end);
       result.push_back(std::get<0>(r));
       it = std::get<1>(r);
-
-      if (it->type() == ::YAML_FLOW_SEQUENCE_END_TOKEN) {
-        return std::forward_as_tuple(result, std::next(it));
-      } else if (it->type() == ::YAML_FLOW_ENTRY_TOKEN) {
-        // continue
-        it = std::next(it);
-      } else {
-        throw std::runtime_error("invalid token type");
-      }
     }
   }
 };

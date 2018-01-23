@@ -154,12 +154,15 @@ BOOST_AUTO_TEST_CASE(deserialize_block_sequence_of_scalar_to_std_vector) {
 }
 
 BOOST_AUTO_TEST_CASE(deserialize_flow_sequence_of_scalar_to_std_vector) {
-  const auto v = yamlizer::from_yaml<std::vector<int>>("[0, 1, 2, 3, 4, 5]");
-  BOOST_TEST(v.size() == 6u);
-  BOOST_TEST(v[0] == 0);
-  BOOST_TEST(v[1] == 1);
-  BOOST_TEST(v[2] == 2);
-  BOOST_TEST(v[3] == 3);
-  BOOST_TEST(v[4] == 4);
-  BOOST_TEST(v[5] == 5);
+  const auto v1 = yamlizer::from_yaml<std::vector<int>>("[0, 1, 2, 3, 4, 5]");
+  BOOST_TEST(v1.size() == 6u);
+  BOOST_TEST(v1[0] == 0);
+  BOOST_TEST(v1[1] == 1);
+  BOOST_TEST(v1[2] == 2);
+  BOOST_TEST(v1[3] == 3);
+  BOOST_TEST(v1[4] == 4);
+  BOOST_TEST(v1[5] == 5);
+
+  const auto v2 = yamlizer::from_yaml<std::vector<int>>("[]");
+  BOOST_TEST(v2.size() == 0u);
 }
