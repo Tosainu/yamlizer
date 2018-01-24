@@ -21,10 +21,10 @@ constexpr auto make_index_range() {
 }
 
 template <class T, class = void>
-struct has_push_back : std::false_type {};
+struct has_emplace_back : std::false_type {};
 template <class T>
-struct has_push_back<T, decltype(static_cast<void>(std::declval<T>().push_back(
-                            std::declval<typename T::value_type>())))> : std::true_type {};
+struct has_emplace_back<T, decltype(std::declval<T>().emplace_back(
+                               std::declval<typename T::value_type>()))> : std::true_type {};
 
 template <class T, class = void>
 struct has_emplace : std::false_type {};
@@ -160,7 +160,7 @@ struct read_value_impl {
 
   template <class T, class Iterator>
   static auto apply(Iterator begin, Iterator end)
-      -> std::enable_if_t<has_push_back<T>::value && !std::is_same<T, std::string>::value,
+      -> std::enable_if_t<has_emplace_back<T>::value && !std::is_same<T, std::string>::value,
                           std::tuple<T, Iterator>> {
     switch (begin->type()) {
       case ::YAML_BLOCK_SEQUENCE_START_TOKEN:
@@ -200,13 +200,13 @@ struct read_value_impl {
 
   template <class T, class Iterator>
   static auto read_block_sequence(Iterator begin, Iterator end)
-      -> std::enable_if_t<has_push_back<T>::value, std::tuple<T, Iterator>> {
+      -> std::enable_if_t<has_emplace_back<T>::value, std::tuple<T, Iterator>> {
     T result{};
     for (auto it = begin;;) {
       if (it->type() == ::YAML_BLOCK_ENTRY_TOKEN) {
         const auto r = read_value_impl::apply<std::remove_reference_t<typename T::value_type>>(
             std::next(it), end);
-        result.push_back(std::get<0>(r));
+        result.emplace_back(std::get<0>(r));
         it = std::get<1>(r);
       } else if (it->type() == ::YAML_BLOCK_END_TOKEN) {
         return std::forward_as_tuple(result, std::next(it));
@@ -239,7 +239,7 @@ struct read_value_impl {
 
   template <class T, class Iterator>
   static auto read_flow_sequence(Iterator begin, Iterator end)
-      -> std::enable_if_t<has_push_back<T>::value, std::tuple<T, Iterator>> {
+      -> std::enable_if_t<has_emplace_back<T>::value, std::tuple<T, Iterator>> {
     T result{};
     for (auto it = begin;;) {
       if (it->type() == ::YAML_FLOW_SEQUENCE_END_TOKEN) {
@@ -252,7 +252,7 @@ struct read_value_impl {
 
       const auto r =
           read_value_impl::apply<std::remove_reference_t<typename T::value_type>>(it, end);
-      result.push_back(std::get<0>(r));
+      result.emplace_back(std::get<0>(r));
       it = std::get<1>(r);
     }
   }
