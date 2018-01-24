@@ -3,6 +3,7 @@
 
 #include <stdexcept>
 #include <type_traits>
+#include <utility>
 #include <boost/convert.hpp>
 #include <boost/convert/lexical_cast.hpp>
 #include <boost/hana.hpp>
@@ -25,6 +26,24 @@ template <class T>
 struct has_push_back<T, decltype(static_cast<void>(std::declval<T>().push_back(
                             std::declval<typename T::value_type>())))> : std::true_type {};
 
+template <class T, class = void>
+struct has_emplace : std::false_type {};
+template <class T>
+struct has_emplace<
+    T, std::enable_if_t<std::is_same<
+           decltype(std::declval<T>().emplace(std::declval<typename T::value_type>())),
+           std::pair<typename T::iterator, bool>>::value>>
+    : std::true_type {};
+
+template <class T, class = void>
+struct is_key_value_container : std::false_type {};
+template <class T>
+struct is_key_value_container<
+    T, std::enable_if_t<std::is_same<
+           typename T::value_type,
+           std::pair<std::add_const_t<typename T::key_type>, typename T::mapped_type>>::value>>
+    : std::true_type {};
+
 template <class Iterator>
 bool check_token_type(::yaml_token_type_t type, Iterator begin, Iterator end) {
   if (begin >= end) {
@@ -44,6 +63,38 @@ struct read_value_impl {
                                    std::next(begin));
     } else {
       throw std::runtime_error("token type != YAML_SCALAR_TOKEN");
+    }
+  }
+
+  template <class T, class Iterator>
+  static auto apply(Iterator begin, Iterator end)
+      -> std::enable_if_t<has_emplace<T>::value && is_key_value_container<T>::value,
+                          std::tuple<T, Iterator>> {
+    if (!check_token_type(::YAML_BLOCK_MAPPING_START_TOKEN, begin, end)) {
+      throw std::runtime_error("token type != YAML_BLOCK_MAPPING_START_TOKEN");
+    }
+
+    T result{};
+    for (auto it = std::next(begin);;) {
+      if (check_token_type(::YAML_BLOCK_END_TOKEN, it, end)) {
+        return std::forward_as_tuple(result, std::next(it));
+      }
+
+      if (!check_token_type(::YAML_KEY_TOKEN, it, end)) {
+        throw std::runtime_error("token type != YAML_KEY_TOKEN");
+      }
+      const auto r1 = read_value_impl::apply<typename T::key_type>(std::next(it), end);
+
+      if (!check_token_type(::YAML_VALUE_TOKEN, std::get<1>(r1), end)) {
+        throw std::runtime_error("token type != YAML_VALUE_TOKEN");
+      }
+      const auto r2 =
+          read_value_impl::apply<typename T::mapped_type>(std::next(std::get<1>(r1)), end);
+
+      if (!std::get<1>(result.emplace(std::get<0>(r1), std::get<0>(r2)))) {
+        throw std::runtime_error("failed to insert an object");
+      }
+      it = std::get<1>(r2);
     }
   }
 

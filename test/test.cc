@@ -3,6 +3,8 @@
 
 #include <array>
 #include <iostream>
+#include <map>
+#include <unordered_map>
 #include <vector>
 #include <boost/hana.hpp>
 #include <boost/test/unit_test.hpp>
@@ -165,4 +167,39 @@ BOOST_AUTO_TEST_CASE(deserialize_flow_sequence_of_scalar_to_std_vector) {
 
   const auto v2 = yamlizer::from_yaml<std::vector<int>>("[]");
   BOOST_TEST(v2.size() == 0u);
+}
+
+BOOST_AUTO_TEST_CASE(deserialize_key_value_container) {
+  const auto m1 = yamlizer::from_yaml<std::map<std::string, int>>(R"EOS(
+foo: 123
+bar: 456
+)EOS");
+  BOOST_TEST(m1.size() == 2u);
+  BOOST_TEST(m1.at("foo") == 123);
+  BOOST_TEST(m1.at("bar") == 456);
+
+  using msi = std::map<std::string, int>;
+  BOOST_CHECK_THROW(yamlizer::from_yaml<msi>("foo: 123\nfoo: 456"), std::exception);
+
+  const auto m2 = yamlizer::from_yaml<std::unordered_map<std::string, int>>(R"EOS(
+foo: 123
+bar: 456
+)EOS");
+  BOOST_TEST(m2.size() == 2u);
+  BOOST_TEST(m2.at("foo") == 123);
+  BOOST_TEST(m2.at("bar") == 456);
+
+  const auto m3 = yamlizer::from_yaml<std::map<std::string, book>>(R"EOS(
+book1:
+  name: Gochumon wa Usagi Desuka ? Vol.1
+  price: 819
+book2:
+  name: Anne Happy Vol.1
+  price: 590
+)EOS");
+  BOOST_TEST(m3.size() == 2u);
+  BOOST_TEST(m3.at("book1").name == "Gochumon wa Usagi Desuka ? Vol.1");
+  BOOST_TEST(m3.at("book1").price == 819);
+  BOOST_TEST(m3.at("book2").name == "Anne Happy Vol.1");
+  BOOST_TEST(m3.at("book2").price == 590);
 }
