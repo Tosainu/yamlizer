@@ -59,8 +59,8 @@ struct read_value_impl {
                           std::tuple<T, Iterator>> {
     if (check_token_type(::YAML_SCALAR_TOKEN, begin, end)) {
       boost::cnv::lexical_cast cnv{};
-      return std::forward_as_tuple(boost::convert<T>(begin->data().scalar.value, cnv).value(),
-                                   std::next(begin));
+      return std::make_tuple(boost::convert<T>(begin->data().scalar.value, cnv).value(),
+                             std::next(begin));
     } else {
       throw std::runtime_error("token type != YAML_SCALAR_TOKEN");
     }
@@ -77,7 +77,7 @@ struct read_value_impl {
     T result{};
     for (auto it = std::next(begin);;) {
       if (check_token_type(::YAML_BLOCK_END_TOKEN, it, end)) {
-        return std::forward_as_tuple(result, std::next(it));
+        return std::make_tuple(result, std::next(it));
       }
 
       if (!check_token_type(::YAML_KEY_TOKEN, it, end)) {
@@ -138,7 +138,7 @@ struct read_value_impl {
     if (!check_token_type(::YAML_BLOCK_END_TOKEN, std::get<1>(r2), end)) {
       throw std::runtime_error("token type != YAML_BLOCK_END_TOKEN");
     }
-    return std::forward_as_tuple(std::get<0>(r2), std::next(std::get<1>(r2)));
+    return std::make_tuple(std::get<0>(r2), std::next(std::get<1>(r2)));
   }
 
   template <class T, class Iterator>
@@ -195,7 +195,7 @@ struct read_value_impl {
     if (!check_token_type(::YAML_BLOCK_END_TOKEN, std::get<1>(r1), end)) {
       throw std::runtime_error("token type != YAML_BLOCK_END_TOKEN");
     }
-    return std::forward_as_tuple(std::get<0>(r1), std::next(std::get<1>(r1)));
+    return std::make_tuple(std::get<0>(r1), std::next(std::get<1>(r1)));
   }
 
   template <class T, class Iterator>
@@ -209,7 +209,7 @@ struct read_value_impl {
         result.emplace_back(std::get<0>(r));
         it = std::get<1>(r);
       } else if (it->type() == ::YAML_BLOCK_END_TOKEN) {
-        return std::forward_as_tuple(result, std::next(it));
+        return std::make_tuple(result, std::next(it));
       } else {
         throw std::runtime_error("invalid token type");
       }
@@ -243,7 +243,7 @@ struct read_value_impl {
     T result{};
     for (auto it = begin;;) {
       if (it->type() == ::YAML_FLOW_SEQUENCE_END_TOKEN) {
-        return std::forward_as_tuple(result, std::next(it));
+        return std::make_tuple(result, std::next(it));
       }
 
       if (it->type() == ::YAML_FLOW_ENTRY_TOKEN) {
@@ -267,7 +267,7 @@ std::tuple<T, Iterator> read_value(Iterator begin, Iterator end) {
   if (!check_token_type(::YAML_STREAM_END_TOKEN, std::get<1>(r), end)) {
     throw std::runtime_error("token type != YAML_BLOCK_END_TOKEN");
   }
-  return std::forward_as_tuple(std::get<0>(r), std::next(std::get<1>(r)));
+  return std::make_tuple(std::get<0>(r), std::next(std::get<1>(r)));
 }
 
 } // namespace detail
