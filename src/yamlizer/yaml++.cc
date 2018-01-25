@@ -9,11 +9,11 @@ token::~token() {
   ::yaml_token_delete(&token_);
 }
 
-token::token(token&& t) {
+token::token(token&& t) noexcept {
   std::swap(token_, t.token_);
 }
 
-token& token::operator=(token&& t) {
+token& token::operator=(token&& t) noexcept {
   std::swap(token_, t.token_);
   return *this;
 }
@@ -38,12 +38,12 @@ parser::~parser() {
   ::yaml_parser_delete(&parser_);
 }
 
-parser::parser(parser&& t) {
+parser::parser(parser&& t) noexcept {
   std::swap(buffer_, t.buffer_);
   std::swap(parser_, t.parser_);
 }
 
-parser& parser::operator=(parser&& t) {
+parser& parser::operator=(parser&& t) noexcept {
   std::swap(buffer_, t.buffer_);
   std::swap(parser_, t.parser_);
   return *this;
