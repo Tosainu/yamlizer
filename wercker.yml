@@ -10,19 +10,15 @@ build:
         apk add --update build-base boost boost-dev clang clang-dev cmake ninja yaml yaml-dev
 
     - script:
-      name: build-gcc
+      name: build
       code: |
-        mkdir -p build-gcc
-        cd build-gcc
-        cmake .. -G Ninja -DCMAKE_CXX_COMPILER=g++
+        mkdir -p build
+        cd build
+        cmake .. -G Ninja -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_COMPILER=$CXX -DCMAKE_CXX_STANDARD=$CXX_STANDARD
         ninja -v
-        ctest --output-on-failure
 
     - script:
-      name: build-clang
+      name: test
       code: |
-        mkdir -p build-clang
-        cd build-clang
-        cmake .. -G Ninja -DCMAKE_CXX_COMPILER=clang++
-        ninja -v
+        cd build
         ctest --output-on-failure
