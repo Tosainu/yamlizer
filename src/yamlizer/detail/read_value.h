@@ -23,8 +23,8 @@ constexpr auto make_index_range() {
 template <class T, class = void>
 struct has_emplace_back : std::false_type {};
 template <class T>
-struct has_emplace_back<T, decltype(std::declval<T>().emplace_back(
-                               std::declval<typename T::value_type>()))> : std::true_type {};
+struct has_emplace_back<T, decltype(static_cast<void>(std::declval<T>().emplace_back(
+                               std::declval<typename T::value_type>())))> : std::true_type {};
 
 template <class T, class = void>
 struct has_emplace : std::false_type {};
