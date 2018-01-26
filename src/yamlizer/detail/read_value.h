@@ -12,6 +12,7 @@
 #include <boost/hana/ext/std/array.hpp>
 #include <boost/hana/ext/std/pair.hpp>
 #include <boost/hana/ext/std/tuple.hpp>
+#include <boost/type_index.hpp>
 #include "yamlizer/yaml++.h"
 
 // __has_include is c++17's feature but most compilers support it
@@ -81,10 +82,12 @@ struct is_optional<std::experimental::optional<T>> : std::true_type {};
 template <class T>
 using remove_cvref_t = std::remove_cv_t<std::remove_reference_t<T>>;
 
+using namespace std::string_literals;
+
 template <class Iterator>
 bool check_token_type(::yaml_token_type_t type, Iterator begin, Iterator end) {
   if (begin >= end) {
-    throw std::runtime_error("it >= end");
+    throw std::runtime_error("iterator reached the end");
   }
   return begin->type() == type;
 }
@@ -96,8 +99,12 @@ struct read_value_impl {
                           std::tuple<T, Iterator>> {
     if (check_token_type(::YAML_SCALAR_TOKEN, begin, end)) {
       boost::cnv::lexical_cast cnv{};
-      return std::make_tuple(boost::convert<T>(begin->data().scalar.value, cnv).value(),
-                             std::next(begin));
+      if (auto v = boost::convert<T>(begin->data().scalar.value, cnv)) {
+        return std::make_tuple(v.value(), std::next(begin));
+      } else {
+        throw std::runtime_error("failed to convert value to "s +
+                                 boost::typeindex::type_id<T>().pretty_name());
+      }
     } else {
       throw std::runtime_error("token type != YAML_SCALAR_TOKEN");
     }
@@ -159,10 +166,10 @@ struct read_value_impl {
       throw std::runtime_error("token type != YAML_BLOCK_MAPPING_START_TOKEN");
     }
 
-    const auto r2 = boost::hana::fold_left(
-        boost::hana::keys(T{}), std::forward_as_tuple(T{}, std::next(begin)),
-        [end](auto acc, auto key) {
-          auto acc0        = std::get<0>(acc);
+    const auto keys = boost::hana::keys(T{});
+    const auto r1   = boost::hana::fold_left(
+        keys, std::forward_as_tuple(T{}, std::next(begin)), [end](auto acc, auto key) {
+          auto& acc0       = std::get<0>(acc);
           using value_type = remove_cvref_t<decltype(boost::hana::at_key(acc0, key))>;
 
           const auto r =
@@ -171,10 +178,10 @@ struct read_value_impl {
           return std::make_tuple(acc0, std::get<1>(r));
         });
 
-    if (!check_token_type(::YAML_BLOCK_END_TOKEN, std::get<1>(r2), end)) {
+    if (!check_token_type(::YAML_BLOCK_END_TOKEN, std::get<1>(r1), end)) {
       throw std::runtime_error("token type != YAML_BLOCK_END_TOKEN");
     }
-    return std::make_tuple(std::get<0>(r2), std::next(std::get<1>(r2)));
+    return std::make_tuple(std::get<0>(r1), std::next(std::get<1>(r1)));
   }
 
   template <class T, class Iterator>
@@ -183,7 +190,7 @@ struct read_value_impl {
                               !boost::hana::Struct<T>::value,
                           std::tuple<T, Iterator>> {
     if (begin >= end) {
-      throw std::runtime_error("it >= end");
+      throw std::runtime_error("iterator reached the end");
     }
 
     switch (begin->type()) {
@@ -195,7 +202,7 @@ struct read_value_impl {
 
       default:
         throw std::runtime_error(
-            "t.type() != YAML_BLOCK_SEQUENCE_START_TOKEN || YAML_FLOW_SEQUENCE_START_TOKEN");
+            "token type != YAML_BLOCK_SEQUENCE_START_TOKEN || YAML_FLOW_SEQUENCE_START_TOKEN");
     }
   }
 
@@ -204,7 +211,7 @@ struct read_value_impl {
       -> std::enable_if_t<has_emplace_back<T>::value && !is_string<T>::value,
                           std::tuple<T, Iterator>> {
     if (begin >= end) {
-      throw std::runtime_error("it >= end");
+      throw std::runtime_error("iterator reached the end");
     }
 
     switch (begin->type()) {
@@ -216,7 +223,7 @@ struct read_value_impl {
 
       default:
         throw std::runtime_error(
-            "t.type() != YAML_BLOCK_SEQUENCE_START_TOKEN || YAML_FLOW_SEQUENCE_START_TOKEN");
+            "token type != YAML_BLOCK_SEQUENCE_START_TOKEN || YAML_FLOW_SEQUENCE_START_TOKEN");
     }
   }
 
@@ -272,7 +279,7 @@ struct read_value_impl {
           if (!(check_token_type(::YAML_FLOW_ENTRY_TOKEN, std::get<1>(r), end) ||
                 check_token_type(::YAML_FLOW_SEQUENCE_END_TOKEN, std::get<1>(r), end))) {
             throw std::runtime_error(
-                "t.type() != YAML_FLOW_ENTRY_TOKEN || YAML_FLOW_SEQUENCE_END_TOKEN");
+                "token type != YAML_FLOW_ENTRY_TOKEN || YAML_FLOW_SEQUENCE_END_TOKEN");
           }
 
           return std::make_tuple(acc0, std::next(std::get<1>(r)));
@@ -324,7 +331,6 @@ struct read_value_impl {
     const auto actual_key   = boost::hana::first(std::get<0>(r));
     constexpr auto key_cstr = boost::hana::to<const char*>(key);
     if (actual_key != key_cstr) {
-      using namespace std::string_literals;
       throw std::runtime_error("key does not match: ["s + actual_key + " != "s + key_cstr +
                                "]"s);
     } else {
