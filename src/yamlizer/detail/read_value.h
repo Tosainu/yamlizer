@@ -1,7 +1,9 @@
 #ifndef YAMLIZER_DETAIL_READ_VALUE_H
 #define YAMLIZER_DETAIL_READ_VALUE_H
 
+#include <iterator>
 #include <stdexcept>
+#include <string>
 #include <type_traits>
 #include <utility>
 #include <boost/convert.hpp>
@@ -173,6 +175,10 @@ struct read_value_impl {
       -> std::enable_if_t<boost::hana::Foldable<T>::value && !boost::hana::Product<T>::value &&
                               !boost::hana::Struct<T>::value,
                           std::tuple<T, Iterator>> {
+    if (begin >= end) {
+      throw std::runtime_error("it >= end");
+    }
+
     switch (begin->type()) {
       case ::YAML_BLOCK_SEQUENCE_START_TOKEN:
         return read_value_impl::read_block_sequence<T>(std::next(begin), end);
@@ -190,6 +196,10 @@ struct read_value_impl {
   static auto apply(Iterator begin, Iterator end)
       -> std::enable_if_t<has_emplace_back<T>::value && !std::is_same<T, std::string>::value,
                           std::tuple<T, Iterator>> {
+    if (begin >= end) {
+      throw std::runtime_error("it >= end");
+    }
+
     switch (begin->type()) {
       case ::YAML_BLOCK_SEQUENCE_START_TOKEN:
         return read_value_impl::read_block_sequence<T>(std::next(begin), end);
@@ -230,11 +240,11 @@ struct read_value_impl {
       -> std::enable_if_t<has_emplace_back<T>::value, std::tuple<T, Iterator>> {
     T result{};
     for (auto it = begin;;) {
-      if (it->type() == ::YAML_BLOCK_ENTRY_TOKEN) {
+      if (check_token_type(::YAML_BLOCK_ENTRY_TOKEN, it, end)) {
         const auto r = read_value_impl::apply<typename T::value_type>(std::next(it), end);
         result.emplace_back(std::get<0>(r));
         it = std::get<1>(r);
-      } else if (it->type() == ::YAML_BLOCK_END_TOKEN) {
+      } else if (check_token_type(::YAML_BLOCK_END_TOKEN, it, end)) {
         return std::make_tuple(result, std::next(it));
       } else {
         throw std::runtime_error("invalid token type");
@@ -252,8 +262,8 @@ struct read_value_impl {
           auto r           = read_value_impl::apply<value_type>(std::get<1>(acc), end);
           boost::hana::at(acc0, key) = std::get<0>(r);
 
-          if (std::get<1>(r)->type() != ::YAML_FLOW_ENTRY_TOKEN &&
-              std::get<1>(r)->type() != ::YAML_FLOW_SEQUENCE_END_TOKEN) {
+          if (!(check_token_type(::YAML_FLOW_ENTRY_TOKEN, std::get<1>(r), end) ||
+                check_token_type(::YAML_FLOW_SEQUENCE_END_TOKEN, std::get<1>(r), end))) {
             throw std::runtime_error(
                 "t.type() != YAML_FLOW_ENTRY_TOKEN || YAML_FLOW_SEQUENCE_END_TOKEN");
           }
@@ -267,11 +277,11 @@ struct read_value_impl {
       -> std::enable_if_t<has_emplace_back<T>::value, std::tuple<T, Iterator>> {
     T result{};
     for (auto it = begin;;) {
-      if (it->type() == ::YAML_FLOW_SEQUENCE_END_TOKEN) {
+      if (check_token_type(::YAML_FLOW_SEQUENCE_END_TOKEN, it, end)) {
         return std::make_tuple(result, std::next(it));
       }
 
-      if (it->type() == ::YAML_FLOW_ENTRY_TOKEN) {
+      if (check_token_type(::YAML_FLOW_ENTRY_TOKEN, it, end)) {
         it = std::next(it);
       }
 
