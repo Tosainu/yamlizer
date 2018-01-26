@@ -59,10 +59,15 @@ BOOST_AUTO_TEST_CASE(deserialize_scalar) {
   const auto v2 = yamlizer::from_yaml<float>("1.23");
   BOOST_TEST(v2 == 1.23f);
 
-  const auto v3 = yamlizer::from_yaml<std::string>("Hello, World!");
-  BOOST_TEST(v3 == "Hello, World!");
-
   BOOST_CHECK_THROW(yamlizer::from_yaml<int>("Hello, World!"), std::exception);
+}
+
+BOOST_AUTO_TEST_CASE(deserialize_string) {
+  const auto s1 = yamlizer::from_yaml<std::string>("Hello, World!");
+  BOOST_TEST(s1.compare("Hello, World!") == 0);
+
+  const auto s2 = yamlizer::from_yaml<std::wstring>("Hello, World!");
+  BOOST_TEST(s2.compare(L"Hello, World!") == 0);
 }
 
 BOOST_AUTO_TEST_CASE(deserialize_pair) {

@@ -60,6 +60,13 @@ struct is_key_value_container<
     : std::true_type {};
 
 template <class T>
+struct is_string : std::false_type {};
+template <>
+struct is_string<std::string> : std::true_type {};
+template <>
+struct is_string<std::wstring> : std::true_type {};
+
+template <class T>
 struct is_optional : std::false_type {};
 #ifdef YAMLIZER_HAS_STD_OPTIONAL
 template <class T>
@@ -85,7 +92,7 @@ bool check_token_type(::yaml_token_type_t type, Iterator begin, Iterator end) {
 struct read_value_impl {
   template <class T, class Iterator>
   static auto apply(Iterator begin, Iterator end)
-      -> std::enable_if_t<std::is_arithmetic<T>::value || std::is_same<T, std::string>::value,
+      -> std::enable_if_t<std::is_arithmetic<T>::value || is_string<T>::value,
                           std::tuple<T, Iterator>> {
     if (check_token_type(::YAML_SCALAR_TOKEN, begin, end)) {
       boost::cnv::lexical_cast cnv{};
@@ -194,7 +201,7 @@ struct read_value_impl {
 
   template <class T, class Iterator>
   static auto apply(Iterator begin, Iterator end)
-      -> std::enable_if_t<has_emplace_back<T>::value && !std::is_same<T, std::string>::value,
+      -> std::enable_if_t<has_emplace_back<T>::value && !is_string<T>::value,
                           std::tuple<T, Iterator>> {
     if (begin >= end) {
       throw std::runtime_error("it >= end");
