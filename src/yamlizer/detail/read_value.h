@@ -12,6 +12,18 @@
 #include <boost/hana/ext/std/tuple.hpp>
 #include "yamlizer/yaml++.h"
 
+// __has_include is c++17's feature but most compilers support it
+#ifdef __has_include
+#  if __has_include(<optional>) && __cplusplus > 201402L
+#    define YAMLIZER_HAS_STD_OPTIONAL
+#    include <optional>
+#  endif
+#  if __has_include(<experimental/optional>) && __cplusplus >= 201402L
+#    define YAMLIZER_HAS_STD_EXPELIMENTAL_OPTIONAL
+#    include <experimental/optional>
+#  endif
+#endif
+
 namespace yamlizer {
 namespace detail {
 
@@ -44,6 +56,17 @@ struct is_key_value_container<
            typename T::value_type,
            std::pair<std::add_const_t<typename T::key_type>, typename T::mapped_type>>::value>>
     : std::true_type {};
+
+template <class T>
+struct is_optional : std::false_type {};
+#ifdef YAMLIZER_HAS_STD_OPTIONAL
+template <class T>
+struct is_optional<std::optional<T>> : std::true_type {};
+#endif
+#ifdef YAMLIZER_HAS_STD_EXPELIMENTAL_OPTIONAL
+template <class T>
+struct is_optional<std::experimental::optional<T>> : std::true_type {};
+#endif
 
 // http://en.cppreference.com/w/cpp/types/remove_cvref
 template <class T>
@@ -88,6 +111,16 @@ struct read_value_impl {
 
   template <class T, class Iterator>
   static auto apply(Iterator begin, Iterator end)
+      -> std::enable_if_t<is_optional<T>::value, std::tuple<T, Iterator>> {
+    try {
+      return read_value_impl::apply<typename T::value_type>(begin, end);
+    } catch (...) {
+      return std::make_tuple(T{}, begin);
+    }
+  }
+
+  template <class T, class Iterator>
+  static auto apply(Iterator begin, Iterator end)
       -> std::enable_if_t<has_emplace<T>::value && is_key_value_container<T>::value,
                           std::tuple<T, Iterator>> {
     if (!check_token_type(::YAML_BLOCK_MAPPING_START_TOKEN, begin, end)) {
@@ -123,20 +156,10 @@ struct read_value_impl {
           auto acc0        = std::get<0>(acc);
           using value_type = remove_cvref_t<decltype(boost::hana::at_key(acc0, key))>;
 
-          const auto r21 =
-              read_value_impl::read_key_value<boost::hana::pair<std::string, value_type>>(
-                  std::get<1>(acc), end);
-
-          const auto actual_key   = boost::hana::first(std::get<0>(r21));
-          constexpr auto key_cstr = boost::hana::to<const char*>(key);
-          if (actual_key != key_cstr) {
-            using namespace std::string_literals;
-            throw std::runtime_error("key does not match: ["s + actual_key + " != "s +
-                                     key_cstr + "]"s);
-          }
-
-          boost::hana::at_key(acc0, key) = boost::hana::second(std::get<0>(r21));
-          return std::make_tuple(acc0, std::get<1>(r21));
+          const auto r =
+              read_value_impl::read_struct_member<value_type>(std::get<1>(acc), end, key);
+          boost::hana::at_key(acc0, key) = std::get<0>(r);
+          return std::make_tuple(acc0, std::get<1>(r));
         });
 
     if (!check_token_type(::YAML_BLOCK_END_TOKEN, std::get<1>(r2), end)) {
@@ -255,6 +278,40 @@ struct read_value_impl {
       const auto r = read_value_impl::apply<typename T::value_type>(it, end);
       result.emplace_back(std::get<0>(r));
       it = std::get<1>(r);
+    }
+  }
+
+  template <class T, class Iterator, class Key>
+  static auto read_struct_member(Iterator begin, Iterator end, Key key)
+      -> std::enable_if_t<is_optional<T>::value, std::tuple<T, Iterator>> {
+    if (!check_token_type(::YAML_KEY_TOKEN, begin, end)) {
+      throw std::runtime_error("token type != YAML_KEY_TOKEN");
+    }
+    const auto r = read_value_impl::apply<std::string>(std::next(begin), end);
+
+    const auto actual_key   = std::get<0>(r);
+    constexpr auto key_cstr = boost::hana::to<const char*>(key);
+    if (actual_key != key_cstr) {
+      return std::make_tuple(T{}, begin);
+    }
+
+    return read_value_impl::read_struct_member<typename T::value_type>(begin, end, key);
+  }
+
+  template <class T, class Iterator, class Key>
+  static auto read_struct_member(Iterator begin, Iterator end, Key key)
+      -> std::enable_if_t<!is_optional<T>::value, std::tuple<T, Iterator>> {
+    const auto r =
+        read_value_impl::read_key_value<boost::hana::pair<std::string, T>>(begin, end);
+
+    const auto actual_key   = boost::hana::first(std::get<0>(r));
+    constexpr auto key_cstr = boost::hana::to<const char*>(key);
+    if (actual_key != key_cstr) {
+      using namespace std::string_literals;
+      throw std::runtime_error("key does not match: ["s + actual_key + " != "s + key_cstr +
+                               "]"s);
+    } else {
+      return std::make_tuple(boost::hana::second(std::get<0>(r)), std::get<1>(r));
     }
   }
 

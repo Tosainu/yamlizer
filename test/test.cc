@@ -209,3 +209,68 @@ book2:
   BOOST_TEST(m3.at("book2").name == "Anne Happy Vol.1");
   BOOST_TEST(m3.at("book2").price == 590);
 }
+
+BOOST_AUTO_TEST_CASE(deserialize_optional1) {
+#ifdef YAMLIZER_HAS_STD_OPTIONAL
+  const auto o1 = yamlizer::from_yaml<std::optional<int>>("");
+  BOOST_TEST(!o1);
+  const auto o2 = yamlizer::from_yaml<std::optional<int>>("123");
+  BOOST_TEST(*o2 == 123);
+#endif
+
+#ifdef YAMLIZER_HAS_STD_EXPELIMENTAL_OPTIONAL
+  const auto oe1 = yamlizer::from_yaml<std::optional<int>>("");
+  BOOST_TEST(!oe1);
+  const auto oe2 = yamlizer::from_yaml<std::optional<int>>("123");
+  BOOST_TEST(*oe2 == 123);
+#endif
+}
+
+BOOST_AUTO_TEST_CASE(deserialize_optional2) {
+#ifdef YAMLIZER_HAS_STD_OPTIONAL
+  {
+    struct optional_struct {
+      BOOST_HANA_DEFINE_STRUCT(optional_struct, (std::optional<int>, v1), (std::string, v2));
+    };
+
+    const auto o1 = yamlizer::from_yaml<optional_struct>(R"eos(
+v1: 123
+v2: poe
+)eos");
+    BOOST_TEST(o1.v1.value() == 123);
+    BOOST_TEST(o1.v2 == "poe");
+
+    const auto o2 = yamlizer::from_yaml<optional_struct>(R"eos(
+v2: poe
+)eos");
+    BOOST_TEST(!o2.v1);
+    BOOST_TEST(o2.v2 == "poe");
+
+    BOOST_CHECK_THROW(yamlizer::from_yaml<optional_struct>("v1: fee\nv2: poe"), std::exception);
+  }
+#endif
+
+#ifdef YAMLIZER_HAS_STD_EXPELIMENTAL_OPTIONAL
+  {
+    struct optional_struct {
+      BOOST_HANA_DEFINE_STRUCT(optional_struct, (std::experimental::optional<int>, v1),
+                               (std::string, v2));
+    };
+
+    const auto o1 = yamlizer::from_yaml<optional_struct>(R"eos(
+v1: 123
+v2: poe
+)eos");
+    BOOST_TEST(o1.v1.value() == 123);
+    BOOST_TEST(o1.v2 == "poe");
+
+    const auto o2 = yamlizer::from_yaml<optional_struct>(R"eos(
+v2: poe
+)eos");
+    BOOST_TEST(!o2.v1);
+    BOOST_TEST(o2.v2 == "poe");
+
+    BOOST_CHECK_THROW(yamlizer::from_yaml<optional_struct>("v1: fee\nv2: poe"), std::exception);
+  }
+#endif
+}
