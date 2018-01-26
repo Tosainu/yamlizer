@@ -65,6 +65,12 @@ BOOST_AUTO_TEST_CASE(deserialize_scalar) {
   BOOST_CHECK_THROW(yamlizer::from_yaml<int>("Hello, World!"), std::exception);
 }
 
+BOOST_AUTO_TEST_CASE(deserialize_pair) {
+  const auto p = yamlizer::from_yaml<std::pair<std::string, int>>("foo: 123");
+  BOOST_TEST(std::get<0>(p) == "foo");
+  BOOST_TEST(std::get<1>(p) == 123);
+}
+
 BOOST_AUTO_TEST_CASE(deserialize_struct) {
   const auto b1 = yamlizer::from_yaml<book>(R"EOS(
 name: Gochumon wa Usagi Desuka ? Vol.1

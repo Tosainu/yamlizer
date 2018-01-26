@@ -8,6 +8,7 @@
 #include <boost/convert/lexical_cast.hpp>
 #include <boost/hana.hpp>
 #include <boost/hana/ext/std/array.hpp>
+#include <boost/hana/ext/std/pair.hpp>
 #include <boost/hana/ext/std/tuple.hpp>
 #include "yamlizer/yaml++.h"
 
@@ -64,6 +65,21 @@ struct read_value_impl {
     } else {
       throw std::runtime_error("token type != YAML_SCALAR_TOKEN");
     }
+  }
+
+  template <class T, class Iterator>
+  static auto apply(Iterator begin, Iterator end)
+      -> std::enable_if_t<boost::hana::Product<T>::value, std::tuple<T, Iterator>> {
+    if (!check_token_type(::YAML_BLOCK_MAPPING_START_TOKEN, begin, end)) {
+      throw std::runtime_error("token type != YAML_BLOCK_MAPPING_START_TOKEN");
+    }
+
+    const auto r = read_value_impl::read_key_value<T>(std::next(begin), end);
+
+    if (!check_token_type(::YAML_BLOCK_END_TOKEN, std::get<1>(r), end)) {
+      throw std::runtime_error("token type != YAML_BLOCK_END_TOKEN");
+    }
+    return std::make_tuple(std::get<0>(r), std::next(std::get<1>(r)));
   }
 
   template <class T, class Iterator>
@@ -143,7 +159,8 @@ struct read_value_impl {
 
   template <class T, class Iterator>
   static auto apply(Iterator begin, Iterator end)
-      -> std::enable_if_t<boost::hana::Foldable<T>::value && !boost::hana::Struct<T>::value,
+      -> std::enable_if_t<boost::hana::Foldable<T>::value && !boost::hana::Product<T>::value &&
+                              !boost::hana::Struct<T>::value,
                           std::tuple<T, Iterator>> {
     switch (begin->type()) {
       case ::YAML_BLOCK_SEQUENCE_START_TOKEN:
@@ -255,6 +272,26 @@ struct read_value_impl {
       result.emplace_back(std::get<0>(r));
       it = std::get<1>(r);
     }
+  }
+
+  template <class T, class Iterator>
+  static auto read_key_value(Iterator begin, Iterator end)
+      -> std::enable_if_t<boost::hana::Product<T>::value, std::tuple<T, Iterator>> {
+    if (!check_token_type(::YAML_KEY_TOKEN, begin, end)) {
+      throw std::runtime_error("token type != YAML_KEY_TOKEN");
+    }
+    using key_type = std::remove_reference_t<decltype(boost::hana::first(std::declval<T>()))>;
+    const auto key = read_value_impl::apply<key_type>(std::next(begin), end);
+
+    if (!check_token_type(::YAML_VALUE_TOKEN, std::get<1>(key), end)) {
+      throw std::runtime_error("token type != YAML_VALUE_TOKEN");
+    }
+    using value_type =
+        std::remove_reference_t<decltype(boost::hana::second(std::declval<T>()))>;
+    const auto value = read_value_impl::apply<value_type>(std::next(std::get<1>(key)), end);
+
+    return std::make_tuple(boost::hana::make<T>(std::get<0>(key), std::get<0>(value)),
+                           std::get<1>(value));
   }
 };
 
