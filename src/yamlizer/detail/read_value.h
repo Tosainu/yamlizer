@@ -45,6 +45,10 @@ struct is_key_value_container<
            std::pair<std::add_const_t<typename T::key_type>, typename T::mapped_type>>::value>>
     : std::true_type {};
 
+// http://en.cppreference.com/w/cpp/types/remove_cvref
+template <class T>
+using remove_cvref_t = std::remove_cv_t<std::remove_reference_t<T>>;
+
 template <class Iterator>
 bool check_token_type(::yaml_token_type_t type, Iterator begin, Iterator end) {
   if (begin >= end) {
@@ -142,10 +146,9 @@ struct read_value_impl {
             throw std::runtime_error("token type != YAML_VALUE_TOKEN");
           }
 
-          auto acc0      = std::get<0>(acc);
-          const auto r22 = read_value_impl::apply<
-              std::remove_reference_t<decltype(boost::hana::at_key(acc0, key))>>(
-              std::next(std::get<1>(r21)), end);
+          auto acc0        = std::get<0>(acc);
+          using value_type = remove_cvref_t<decltype(boost::hana::at_key(acc0, key))>;
+          const auto r22 = read_value_impl::apply<value_type>(std::next(std::get<1>(r21)), end);
           boost::hana::at_key(acc0, key) = std::get<0>(r22);
 
           return std::make_tuple(acc0, std::get<1>(r22));
@@ -201,10 +204,9 @@ struct read_value_impl {
             throw std::runtime_error("token type != YAML_BLOCK_ENTRY_TOKEN");
           }
 
-          auto acc0      = std::get<0>(acc);
-          const auto r11 = read_value_impl::apply<
-              std::remove_reference_t<decltype(boost::hana::at(acc0, key))>>(
-              std::next(std::get<1>(acc)), end);
+          auto acc0        = std::get<0>(acc);
+          using value_type = remove_cvref_t<decltype(boost::hana::at(acc0, key))>;
+          const auto r11 = read_value_impl::apply<value_type>(std::next(std::get<1>(acc)), end);
           boost::hana::at(acc0, key) = std::get<0>(r11);
           return std::make_tuple(acc0, std::get<1>(r11));
         });
@@ -221,8 +223,7 @@ struct read_value_impl {
     T result{};
     for (auto it = begin;;) {
       if (it->type() == ::YAML_BLOCK_ENTRY_TOKEN) {
-        const auto r = read_value_impl::apply<std::remove_reference_t<typename T::value_type>>(
-            std::next(it), end);
+        const auto r = read_value_impl::apply<typename T::value_type>(std::next(it), end);
         result.emplace_back(std::get<0>(r));
         it = std::get<1>(r);
       } else if (it->type() == ::YAML_BLOCK_END_TOKEN) {
@@ -238,10 +239,9 @@ struct read_value_impl {
       -> std::enable_if_t<boost::hana::Foldable<T>::value, std::tuple<T, Iterator>> {
     return boost::hana::fold_left(
         make_index_range<T>(), std::forward_as_tuple(T{}, begin), [end](auto acc, auto key) {
-          auto acc0 = std::get<0>(acc);
-          auto r    = read_value_impl::apply<
-              std::remove_reference_t<decltype(boost::hana::at(acc0, key))>>(std::get<1>(acc),
-                                                                             end);
+          auto acc0        = std::get<0>(acc);
+          using value_type = remove_cvref_t<decltype(boost::hana::at(acc0, key))>;
+          auto r           = read_value_impl::apply<value_type>(std::get<1>(acc), end);
           boost::hana::at(acc0, key) = std::get<0>(r);
 
           if (std::get<1>(r)->type() != ::YAML_FLOW_ENTRY_TOKEN &&
@@ -267,8 +267,7 @@ struct read_value_impl {
         it = std::next(it);
       }
 
-      const auto r =
-          read_value_impl::apply<std::remove_reference_t<typename T::value_type>>(it, end);
+      const auto r = read_value_impl::apply<typename T::value_type>(it, end);
       result.emplace_back(std::get<0>(r));
       it = std::get<1>(r);
     }
@@ -280,14 +279,13 @@ struct read_value_impl {
     if (!check_token_type(::YAML_KEY_TOKEN, begin, end)) {
       throw std::runtime_error("token type != YAML_KEY_TOKEN");
     }
-    using key_type = std::remove_reference_t<decltype(boost::hana::first(std::declval<T>()))>;
+    using key_type = remove_cvref_t<decltype(boost::hana::first(std::declval<T>()))>;
     const auto key = read_value_impl::apply<key_type>(std::next(begin), end);
 
     if (!check_token_type(::YAML_VALUE_TOKEN, std::get<1>(key), end)) {
       throw std::runtime_error("token type != YAML_VALUE_TOKEN");
     }
-    using value_type =
-        std::remove_reference_t<decltype(boost::hana::second(std::declval<T>()))>;
+    using value_type = remove_cvref_t<decltype(boost::hana::second(std::declval<T>()))>;
     const auto value = read_value_impl::apply<value_type>(std::next(std::get<1>(key)), end);
 
     return std::make_tuple(boost::hana::make<T>(std::get<0>(key), std::get<0>(value)),
