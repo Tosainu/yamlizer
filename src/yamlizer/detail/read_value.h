@@ -100,21 +100,12 @@ struct read_value_impl {
         return std::make_tuple(result, std::next(it));
       }
 
-      if (!check_token_type(::YAML_KEY_TOKEN, it, end)) {
-        throw std::runtime_error("token type != YAML_KEY_TOKEN");
-      }
-      const auto r1 = read_value_impl::apply<typename T::key_type>(std::next(it), end);
+      const auto r = read_value_impl::read_key_value<typename T::value_type>(it, end);
 
-      if (!check_token_type(::YAML_VALUE_TOKEN, std::get<1>(r1), end)) {
-        throw std::runtime_error("token type != YAML_VALUE_TOKEN");
-      }
-      const auto r2 =
-          read_value_impl::apply<typename T::mapped_type>(std::next(std::get<1>(r1)), end);
-
-      if (!std::get<1>(result.emplace(std::get<0>(r1), std::get<0>(r2)))) {
+      if (!std::get<1>(result.emplace(std::get<0>(r)))) {
         throw std::runtime_error("failed to insert an object");
       }
-      it = std::get<1>(r2);
+      it = std::get<1>(r);
     }
   }
 
@@ -129,29 +120,23 @@ struct read_value_impl {
     const auto r2 = boost::hana::fold_left(
         boost::hana::keys(T{}), std::forward_as_tuple(T{}, std::next(begin)),
         [end](auto acc, auto key) {
-          if (!check_token_type(::YAML_KEY_TOKEN, std::get<1>(acc), end)) {
-            throw std::runtime_error("token type != YAML_KEY_TOKEN");
-          }
+          auto acc0        = std::get<0>(acc);
+          using value_type = remove_cvref_t<decltype(boost::hana::at_key(acc0, key))>;
 
-          constexpr auto key_cstr = boost::hana::to<const char*>(key);
           const auto r21 =
-              read_value_impl::apply<std::string>(std::next(std::get<1>(acc)), end);
-          if (std::get<0>(r21) != key_cstr) {
+              read_value_impl::read_key_value<boost::hana::pair<std::string, value_type>>(
+                  std::get<1>(acc), end);
+
+          const auto actual_key   = boost::hana::first(std::get<0>(r21));
+          constexpr auto key_cstr = boost::hana::to<const char*>(key);
+          if (actual_key != key_cstr) {
             using namespace std::string_literals;
-            throw std::runtime_error("key does not match: ["s + std::get<0>(r21) + " != "s +
+            throw std::runtime_error("key does not match: ["s + actual_key + " != "s +
                                      key_cstr + "]"s);
           }
 
-          if (!check_token_type(::YAML_VALUE_TOKEN, std::get<1>(r21), end)) {
-            throw std::runtime_error("token type != YAML_VALUE_TOKEN");
-          }
-
-          auto acc0        = std::get<0>(acc);
-          using value_type = remove_cvref_t<decltype(boost::hana::at_key(acc0, key))>;
-          const auto r22 = read_value_impl::apply<value_type>(std::next(std::get<1>(r21)), end);
-          boost::hana::at_key(acc0, key) = std::get<0>(r22);
-
-          return std::make_tuple(acc0, std::get<1>(r22));
+          boost::hana::at_key(acc0, key) = boost::hana::second(std::get<0>(r21));
+          return std::make_tuple(acc0, std::get<1>(r21));
         });
 
     if (!check_token_type(::YAML_BLOCK_END_TOKEN, std::get<1>(r2), end)) {
