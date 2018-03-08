@@ -4,7 +4,7 @@ YAML deserializer for C++17
 
 ## Requirements
 
-- GCC 6.4.0+ or Clang 5.0.0+
+- GCC 7.3.1+ or Clang 5.0.1+
 - CMake 3.5+
 - Boost 1.61.0+
   - Boost.Convert
