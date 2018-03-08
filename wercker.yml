@@ -1,13 +1,13 @@
-box:
-  id: alpine
-  cmd: /bin/sh
+box: fedora
 
 build:
   steps:
     - script:
       name: setup packages
       code: |
-        apk add --update build-base boost boost-dev clang clang-dev cmake ninja yaml yaml-dev
+        dnf upgrade -y
+        dnf install -y boost-devel clang cmake libyaml-devel ninja-build
+        dnf clean all
 
     - script:
       name: build
