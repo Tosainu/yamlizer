@@ -1,6 +1,6 @@
 # yamlizer [![wercker status][wercker-badge]][wercker-runs]
 
-YAML deserializer for C++14
+YAML deserializer for C++17
 
 ## Requirements
 

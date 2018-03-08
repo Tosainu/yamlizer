@@ -15,7 +15,6 @@
 #include <boost/type_index.hpp>
 #include "yamlizer/yaml++.h"
 
-// __has_include is c++17's feature but most compilers support it
 #ifdef __has_include
 #  if __has_include(<optional>) && __cplusplus > 201402L
 #    define YAMLIZER_HAS_STD_OPTIONAL
