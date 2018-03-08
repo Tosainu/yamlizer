@@ -16,15 +16,7 @@
 #include <boost/type_index.hpp>
 #include "yamlizer/yaml++.h"
 
-namespace yamlizer {
-namespace detail {
-
-template <class T, std::enable_if_t<boost::hana::Foldable<T>::value, std::nullptr_t> = nullptr>
-constexpr auto make_index_range() {
-  using length_type = decltype(boost::hana::length(std::declval<T>()));
-  return boost::hana::unpack(boost::hana::make_range(boost::hana::size_c<0>, length_type{}),
-                             boost::hana::make_tuple);
-}
+namespace yamlizer::detail {
 
 template <class T, class = void>
 struct has_emplace_back : std::false_type {};
@@ -36,18 +28,18 @@ template <class T, class = void>
 struct has_emplace : std::false_type {};
 template <class T>
 struct has_emplace<
-    T, std::enable_if_t<std::is_same<
-           decltype(std::declval<T>().emplace(std::declval<typename T::value_type>())),
-           std::pair<typename T::iterator, bool>>::value>>
+    T, std::enable_if_t<std::is_same_v<
+        decltype(std::declval<T>().emplace(std::declval<typename T::value_type>())),
+        std::pair<typename T::iterator, bool>>>>
     : std::true_type {};
 
 template <class T, class = void>
 struct is_key_value_container : std::false_type {};
 template <class T>
 struct is_key_value_container<
-    T, std::enable_if_t<std::is_same<
-           typename T::value_type,
-           std::pair<std::add_const_t<typename T::key_type>, typename T::mapped_type>>::value>>
+    T, std::enable_if_t<std::is_same_v<
+        typename T::value_type,
+        std::pair<std::add_const_t<typename T::key_type>, typename T::mapped_type>>>>
     : std::true_type {};
 
 template <class T>
@@ -68,6 +60,13 @@ using remove_cvref_t = std::remove_cv_t<std::remove_reference_t<T>>;
 
 using namespace std::string_literals;
 
+template <class T, std::enable_if_t<boost::hana::Foldable<T>::value, std::nullptr_t> = nullptr>
+constexpr auto make_index_range() {
+  using length_type = decltype(boost::hana::length(std::declval<T>()));
+  return boost::hana::unpack(boost::hana::make_range(boost::hana::size_c<0>, length_type{}),
+                             boost::hana::make_tuple);
+}
+
 template <class Iterator>
 bool check_token_type(::yaml_token_type_t type, Iterator begin, Iterator end) {
   if (begin >= end) {
@@ -79,7 +78,7 @@ bool check_token_type(::yaml_token_type_t type, Iterator begin, Iterator end) {
 struct read_value_impl {
   template <class T, class Iterator>
   static auto apply(Iterator begin, Iterator end)
-      -> std::enable_if_t<std::is_arithmetic<T>::value || is_string<T>::value,
+      -> std::enable_if_t<std::is_arithmetic_v<T> || is_string<T>::value,
                           std::tuple<T, Iterator>> {
     if (check_token_type(::YAML_SCALAR_TOKEN, begin, end)) {
       boost::cnv::lexical_cast cnv{};
@@ -110,6 +109,7 @@ struct read_value_impl {
       throw std::runtime_error(
           "token type != YAML_BLOCK_END_TOKEN || YAML_FLOW_MAPPING_END_TOKEN");
     }
+
     return std::make_tuple(std::get<0>(r), std::next(std::get<1>(r)));
   }
 
@@ -159,6 +159,7 @@ struct read_value_impl {
       if (!std::get<1>(result.emplace(std::get<0>(r)))) {
         throw std::runtime_error("failed to insert an object");
       }
+
       it = std::get<1>(r);
     }
   }
@@ -182,6 +183,7 @@ struct read_value_impl {
       if (!std::get<1>(result.emplace(std::get<0>(r)))) {
         throw std::runtime_error("failed to insert an object");
       }
+
       it = std::get<1>(r);
     }
   }
@@ -216,7 +218,6 @@ struct read_value_impl {
         keys, std::forward_as_tuple(T{}, begin), [end](auto acc, auto key) {
           auto& acc0       = std::get<0>(acc);
           using value_type = remove_cvref_t<decltype(boost::hana::at_key(acc0, key))>;
-
           const auto r =
               read_value_impl::read_struct_member<value_type>(std::get<1>(acc), end, key);
           boost::hana::at_key(acc0, key) = std::get<0>(r);
@@ -342,6 +343,7 @@ struct read_value_impl {
     if (!check_token_type(::YAML_BLOCK_END_TOKEN, std::get<1>(r), end)) {
       throw std::runtime_error("token type != YAML_BLOCK_END_TOKEN");
     }
+
     return std::make_tuple(std::get<0>(r), std::next(std::get<1>(r)));
   }
 
@@ -386,7 +388,7 @@ struct read_value_impl {
     });
 
     const auto r = boost::hana::fold_left(
-        fs2, std::make_tuple(T{}, begin),
+        fs2, std::forward_as_tuple(T{}, begin),
         [end](auto&& acc, auto f) { return f(std::forward<decltype(acc)>(acc)); });
 
     if (!check_token_type(::YAML_FLOW_SEQUENCE_END_TOKEN, std::get<1>(r), end)) {
@@ -480,7 +482,6 @@ std::tuple<T, Iterator> read_value(Iterator begin, Iterator end) {
   return std::make_tuple(std::get<0>(r), std::next(std::get<1>(r)));
 }
 
-} // namespace detail
-} // namespace yamlizer
+} // namespace yamlizer::detail
 
 #endif // YAMLIZER_DETAIL_READ_VALUE_H
