@@ -26,12 +26,12 @@ decltype(std::declval<::yaml_token_t>().data) token::data() const {
   return token_.data;
 }
 
-parser::parser(std::string buffer) : buffer_(std::move(buffer)) {
+parser::parser(std::string_view buffer) : buffer_(buffer) {
   if (!::yaml_parser_initialize(&parser_)) {
     throw std::runtime_error("Failed to initialize YAML parser");
   }
   ::yaml_parser_set_input_string(
-      &parser_, reinterpret_cast<const unsigned char*>(buffer_.c_str()), buffer_.length());
+      &parser_, reinterpret_cast<const unsigned char*>(buffer_.data()), buffer_.length());
 }
 
 parser::~parser() {

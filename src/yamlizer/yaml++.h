@@ -27,11 +27,11 @@ public:
 };
 
 class parser final {
-  std::string buffer_;
+  std::string_view buffer_;
   ::yaml_parser_t parser_;
 
 public:
-  parser(std::string buffer);
+  parser(std::string_view buffer);
   ~parser();
 
   parser(const parser&) = delete;

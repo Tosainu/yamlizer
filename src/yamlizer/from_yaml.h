@@ -1,6 +1,7 @@
 #ifndef YAMLIZER_FROM_YAML_H
 #define YAMLIZER_FROM_YAML_H
 
+#include <string_view>
 #include <vector>
 
 #include "detail/read_value.h"
@@ -9,8 +10,8 @@
 namespace yamlizer {
 
 template <class T>
-T from_yaml(std::string yaml) {
-  parser p{std::move(yaml)};
+T from_yaml(std::string_view yaml) {
+  parser p{yaml};
 
   std::vector<token> ts{};
   for (auto prev_token = ::YAML_NO_TOKEN; prev_token != ::YAML_STREAM_END_TOKEN;) {
