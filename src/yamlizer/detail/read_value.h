@@ -2,6 +2,7 @@
 #define YAMLIZER_DETAIL_READ_VALUE_H
 
 #include <iterator>
+#include <optional>
 #include <stdexcept>
 #include <string>
 #include <type_traits>
@@ -14,17 +15,6 @@
 #include <boost/hana/ext/std/tuple.hpp>
 #include <boost/type_index.hpp>
 #include "yamlizer/yaml++.h"
-
-#ifdef __has_include
-#  if __has_include(<optional>) && __cplusplus > 201402L
-#    define YAMLIZER_HAS_STD_OPTIONAL
-#    include <optional>
-#  endif
-#  if __has_include(<experimental/optional>) && __cplusplus >= 201402L
-#    define YAMLIZER_HAS_STD_EXPELIMENTAL_OPTIONAL
-#    include <experimental/optional>
-#  endif
-#endif
 
 namespace yamlizer {
 namespace detail {
@@ -69,14 +59,8 @@ struct is_string<std::wstring> : std::true_type {};
 
 template <class T>
 struct is_optional : std::false_type {};
-#ifdef YAMLIZER_HAS_STD_OPTIONAL
 template <class T>
 struct is_optional<std::optional<T>> : std::true_type {};
-#endif
-#ifdef YAMLIZER_HAS_STD_EXPELIMENTAL_OPTIONAL
-template <class T>
-struct is_optional<std::experimental::optional<T>> : std::true_type {};
-#endif
 
 // http://en.cppreference.com/w/cpp/types/remove_cvref
 template <class T>
