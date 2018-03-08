@@ -139,6 +139,8 @@ BOOST_AUTO_TEST_CASE(deserialize_flow_sequence_of_scalar) {
   BOOST_TEST(a.at(0) == 1);
   BOOST_TEST(a.at(1) == 2);
   BOOST_TEST(a.at(2) == 3);
+
+  BOOST_CHECK_NO_THROW(yamlizer::from_yaml<std::tuple<>>("[]"));
 }
 
 BOOST_AUTO_TEST_CASE(deserialize_mapping_of_flow_sequence) {
