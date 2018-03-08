@@ -71,9 +71,17 @@ BOOST_AUTO_TEST_CASE(deserialize_string) {
 }
 
 BOOST_AUTO_TEST_CASE(deserialize_pair) {
-  const auto p = yamlizer::from_yaml<std::pair<std::string, int>>("foo: 123");
-  BOOST_TEST(std::get<0>(p) == "foo");
-  BOOST_TEST(std::get<1>(p) == 123);
+  const auto p1 = yamlizer::from_yaml<std::pair<std::string, int>>("foo: 123");
+  BOOST_TEST(std::get<0>(p1) == "foo");
+  BOOST_TEST(std::get<1>(p1) == 123);
+
+  const auto p2 = yamlizer::from_yaml<std::pair<std::string, int>>(R"EOS(
+{
+  foo: 123
+}
+)EOS");
+  BOOST_TEST(std::get<0>(p2) == "foo");
+  BOOST_TEST(std::get<1>(p2) == 123);
 }
 
 BOOST_AUTO_TEST_CASE(deserialize_struct) {
@@ -83,6 +91,15 @@ price: 819
 )EOS");
   BOOST_TEST(b1.name == "Gochumon wa Usagi Desuka ? Vol.1");
   BOOST_TEST(b1.price == 819);
+
+  const auto b2 = yamlizer::from_yaml<book>(R"EOS(
+{
+  name: 'Gochumon wa Usagi Desuka ? Vol.1',
+  price: 819
+}
+)EOS");
+  BOOST_TEST(b2.name == "Gochumon wa Usagi Desuka ? Vol.1");
+  BOOST_TEST(b2.price == 819);
 
   BOOST_CHECK_THROW(yamlizer::from_yaml<book>("name: Gochumon wa Usagi Desuka ? Vol.1"),
                     std::exception);
@@ -215,6 +232,32 @@ book2:
   BOOST_TEST(m3.at("book1").price == 819);
   BOOST_TEST(m3.at("book2").name == "Anne Happy Vol.1");
   BOOST_TEST(m3.at("book2").price == 590);
+
+  const auto m4 = yamlizer::from_yaml<std::unordered_map<std::string, int>>(R"EOS(
+{
+  foo: 123,
+  bar: 456
+}
+)EOS");
+  BOOST_TEST(m4.size() == 2u);
+  BOOST_TEST(m4.at("foo") == 123);
+  BOOST_TEST(m4.at("bar") == 456);
+
+  const auto m5 = yamlizer::from_yaml<std::map<std::string, book>>(R"EOS(
+book1: {
+    name: 'Gochumon wa Usagi Desuka ? Vol.1',
+    price: 819
+  }
+book2: {
+    name: 'Anne Happy Vol.1',
+    price: 590
+  }
+)EOS");
+  BOOST_TEST(m5.size() == 2u);
+  BOOST_TEST(m5.at("book1").name == "Gochumon wa Usagi Desuka ? Vol.1");
+  BOOST_TEST(m5.at("book1").price == 819);
+  BOOST_TEST(m5.at("book2").name == "Anne Happy Vol.1");
+  BOOST_TEST(m5.at("book2").price == 590);
 }
 
 #ifdef YAMLIZER_HAS_STD_OPTIONAL

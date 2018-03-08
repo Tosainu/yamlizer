@@ -113,14 +113,18 @@ struct read_value_impl {
   template <class T, class Iterator>
   static auto apply(Iterator begin, Iterator end)
       -> std::enable_if_t<boost::hana::Product<T>::value, std::tuple<T, Iterator>> {
-    if (!check_token_type(::YAML_BLOCK_MAPPING_START_TOKEN, begin, end)) {
-      throw std::runtime_error("token type != YAML_BLOCK_MAPPING_START_TOKEN");
+    if (!(check_token_type(::YAML_BLOCK_MAPPING_START_TOKEN, begin, end) ||
+          check_token_type(::YAML_FLOW_MAPPING_START_TOKEN, begin, end))) {
+      throw std::runtime_error(
+          "token type != YAML_BLOCK_MAPPING_START_TOKEN || YAML_FLOW_MAPPING_START_TOKEN");
     }
 
     const auto r = read_value_impl::read_key_value<T>(std::next(begin), end);
 
-    if (!check_token_type(::YAML_BLOCK_END_TOKEN, std::get<1>(r), end)) {
-      throw std::runtime_error("token type != YAML_BLOCK_END_TOKEN");
+    if (!(check_token_type(::YAML_BLOCK_END_TOKEN, std::get<1>(r), end) ||
+          check_token_type(::YAML_FLOW_MAPPING_END_TOKEN, std::get<1>(r), end))) {
+      throw std::runtime_error(
+          "token type != YAML_BLOCK_END_TOKEN || YAML_FLOW_MAPPING_END_TOKEN");
     }
     return std::make_tuple(std::get<0>(r), std::next(std::get<1>(r)));
   }
@@ -139,14 +143,54 @@ struct read_value_impl {
   static auto apply(Iterator begin, Iterator end)
       -> std::enable_if_t<has_emplace<T>::value && is_key_value_container<T>::value,
                           std::tuple<T, Iterator>> {
-    if (!check_token_type(::YAML_BLOCK_MAPPING_START_TOKEN, begin, end)) {
-      throw std::runtime_error("token type != YAML_BLOCK_MAPPING_START_TOKEN");
+    if (begin >= end) {
+      throw std::runtime_error("iterator reached the end");
     }
 
+    switch (begin->type()) {
+      case ::YAML_BLOCK_MAPPING_START_TOKEN:
+        return read_value_impl::read_block_mapping<T>(std::next(begin), end);
+
+      case ::YAML_FLOW_MAPPING_START_TOKEN:
+        return read_value_impl::read_flow_mapping<T>(std::next(begin), end);
+
+      default:
+        throw std::runtime_error(
+            "token type != YAML_BLOCK_MAPPING_START_TOKEN || YAML_FLOW_MAPPING_START_TOKEN");
+    }
+  }
+
+  template <class T, class Iterator>
+  static auto read_block_mapping(Iterator begin, Iterator end)
+      -> std::enable_if_t<has_emplace<T>::value && is_key_value_container<T>::value,
+                          std::tuple<T, Iterator>> {
     T result{};
-    for (auto it = std::next(begin);;) {
+    for (auto it = begin;;) {
       if (check_token_type(::YAML_BLOCK_END_TOKEN, it, end)) {
         return std::make_tuple(result, std::next(it));
+      }
+
+      const auto r = read_value_impl::read_key_value<typename T::value_type>(it, end);
+
+      if (!std::get<1>(result.emplace(std::get<0>(r)))) {
+        throw std::runtime_error("failed to insert an object");
+      }
+      it = std::get<1>(r);
+    }
+  }
+
+  template <class T, class Iterator>
+  static auto read_flow_mapping(Iterator begin, Iterator end)
+      -> std::enable_if_t<has_emplace<T>::value && is_key_value_container<T>::value,
+                          std::tuple<T, Iterator>> {
+    T result{};
+    for (auto it = begin;;) {
+      if (check_token_type(::YAML_FLOW_MAPPING_END_TOKEN, it, end)) {
+        return std::make_tuple(result, std::next(it));
+      }
+
+      if (check_token_type(::YAML_FLOW_ENTRY_TOKEN, it, end)) {
+        it = std::next(it);
       }
 
       const auto r = read_value_impl::read_key_value<typename T::value_type>(it, end);
@@ -162,13 +206,30 @@ struct read_value_impl {
   static auto apply(Iterator begin, Iterator end)
       -> std::enable_if_t<boost::hana::Foldable<T>::value && boost::hana::Struct<T>::value,
                           std::tuple<T, Iterator>> {
-    if (!check_token_type(::YAML_BLOCK_MAPPING_START_TOKEN, begin, end)) {
-      throw std::runtime_error("token type != YAML_BLOCK_MAPPING_START_TOKEN");
+    if (begin >= end) {
+      throw std::runtime_error("iterator reached the end");
     }
 
+    switch (begin->type()) {
+      case ::YAML_BLOCK_MAPPING_START_TOKEN:
+        return read_value_impl::read_block_mapping<T>(std::next(begin), end);
+
+      case ::YAML_FLOW_MAPPING_START_TOKEN:
+        return read_value_impl::read_flow_mapping<T>(std::next(begin), end);
+
+      default:
+        throw std::runtime_error(
+            "token type != YAML_BLOCK_MAPPING_START_TOKEN || YAML_FLOW_MAPPING_START_TOKEN");
+    }
+  }
+
+  template <class T, class Iterator>
+  static auto read_block_mapping(Iterator begin, Iterator end)
+      -> std::enable_if_t<boost::hana::Foldable<T>::value && boost::hana::Struct<T>::value,
+                          std::tuple<T, Iterator>> {
     const auto keys = boost::hana::keys(T{});
     const auto r1   = boost::hana::fold_left(
-        keys, std::forward_as_tuple(T{}, std::next(begin)), [end](auto acc, auto key) {
+        keys, std::forward_as_tuple(T{}, begin), [end](auto acc, auto key) {
           auto& acc0       = std::get<0>(acc);
           using value_type = remove_cvref_t<decltype(boost::hana::at_key(acc0, key))>;
 
@@ -182,6 +243,42 @@ struct read_value_impl {
       throw std::runtime_error("token type != YAML_BLOCK_END_TOKEN");
     }
     return std::make_tuple(std::get<0>(r1), std::next(std::get<1>(r1)));
+  }
+
+  template <class T, class Iterator>
+  static auto read_flow_mapping(Iterator begin, Iterator end)
+      -> std::enable_if_t<boost::hana::Foldable<T>::value && boost::hana::Struct<T>::value,
+                          std::tuple<T, Iterator>> {
+    const auto keys = boost::hana::keys(T{});
+
+    const auto fs1 = boost::hana::transform(keys, [end](auto&& key) {
+      return [end, key](auto acc) {
+        auto& obj        = std::get<0>(acc);
+        using value_type = remove_cvref_t<decltype(boost::hana::at_key(obj, key))>;
+        const auto r =
+            read_value_impl::read_struct_member<value_type>(std::get<1>(acc), end, key);
+        boost::hana::at_key(obj, key) = std::get<0>(r);
+        return std::make_tuple(obj, std::get<1>(r));
+      };
+    });
+
+    const auto fs2 = boost::hana::intersperse(fs1, [end](auto&& acc) {
+      auto&& [obj, begin] = acc;
+      if (!check_token_type(::YAML_FLOW_ENTRY_TOKEN, begin, end)) {
+        throw std::runtime_error("token type != YAML_FLOW_ENTRY_TOKEN");
+      }
+      return std::make_tuple(obj, std::next(begin));
+    });
+
+    const auto r = boost::hana::fold_left(
+        fs2, std::forward_as_tuple(T{}, begin),
+        [end](auto&& acc, auto f) { return f(std::forward<decltype(acc)>(acc)); });
+
+    if (!check_token_type(::YAML_FLOW_MAPPING_END_TOKEN, std::get<1>(r), end)) {
+      throw std::runtime_error("token type != YAML_FLOW_MAPPING_END_TOKEN");
+    }
+
+    return std::make_tuple(std::get<0>(r), std::next(std::get<1>(r)));
   }
 
   template <class T, class Iterator>
