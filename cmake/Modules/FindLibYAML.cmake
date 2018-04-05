@@ -14,3 +14,13 @@ find_package_handle_standard_args(LibYAML
   VERSION_VAR   LibYAML_VERSION)
 
 mark_as_advanced(LibYAML_LIBRARY LibYAML_INCLUDE_DIRS)
+
+if(LibYAML_LIBRARY)
+  if(NOT TARGET libyaml::yaml)
+    add_library(libyaml::yaml UNKNOWN IMPORTED)
+    set_target_properties(libyaml::yaml PROPERTIES
+      INTERFACE_INCLUDE_DIRECTORIES "${LibYAML_INCLUDE_DIRS}")
+    set_target_properties(libyaml::yaml PROPERTIES
+      IMPORTED_LOCATION "${LibYAML_LIBRARY}")
+  endif()
+endif()
