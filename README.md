@@ -1,4 +1,4 @@
-# yamlizer [![wercker status][wercker-badge]][wercker-runs]
+# yamlizer ![](https://github.com/Tosainu/yamlizer/workflows/CI/badge.svg)
 
 YAML deserializer for C++17
 
@@ -82,6 +82,3 @@ const auto t = yamlizer::from_yaml<std::tuple<int, float, std::string>>(R"EOS(
 ## License
 
 [MIT](https://github.com/Tosainu/yamlizer/blob/master/LICENSE)
-
-[wercker-badge]: https://app.wercker.com/status/16e2b290ac7a4de24e210c44fe57f3ff/s/master
-[wercker-runs]:  https://app.wercker.com/project/byKey/16e2b290ac7a4de24e210c44fe57f3ff

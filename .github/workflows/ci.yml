@@ -1,0 +1,34 @@
+name: CI
+on: [push, pull_request]
+
+jobs:
+  test:
+    strategy:
+      matrix:
+        build_type:
+          - Debug
+          - Release
+        cxx_compiler:
+          - g++
+          - clang++
+
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Install apt packages
+        run: |
+          sudo apt update
+          sudo apt install -y libboost-all-dev libyaml-dev ninja-build
+
+      - run: mkdir -p build
+
+      - run: cd build && cmake .. -G Ninja -DCMAKE_BUILD_TYPE=$BUILD_TYPE -DCMAKE_CXX_COMPILER=$CXX_COMPILER -DBOOST_ROOT=/usr
+        env:
+          BUILD_TYPE: ${{ matrix.build_type }}
+          CXX_COMPILER: ${{ matrix.cxx_compiler }}
+
+      - run: cd build && ninja -v
+
+      - run: cd build && ninja test
