@@ -20,15 +20,25 @@ jobs:
       - name: Install apt packages
         run: |
           sudo apt update
-          sudo apt install -y libboost-all-dev libyaml-dev ninja-build
+          sudo apt install -y libboost-all-dev libyaml-dev
 
-      - run: mkdir -p build
-
-      - run: cd build && cmake .. -G Ninja -DCMAKE_BUILD_TYPE=$BUILD_TYPE -DCMAKE_CXX_COMPILER=$CXX_COMPILER -DBOOST_ROOT=/usr
+      - run: cmake -S . -B build -DCMAKE_BUILD_TYPE=$BUILD_TYPE -DCMAKE_CXX_COMPILER=$CXX_COMPILER -DBOOST_ROOT=/usr
         env:
           BUILD_TYPE: ${{ matrix.build_type }}
           CXX_COMPILER: ${{ matrix.cxx_compiler }}
+      - run: cmake --build build -v
+      - run: cd build && make test
 
-      - run: cd build && ninja -v
+  test_macos:
+    runs-on: macos-latest
 
-      - run: cd build && ninja test
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Install packages
+        run: |
+          brew install boost libyaml pkg-config
+
+      - run: cmake -S . -B build
+      - run: cmake --build build -v
+      - run: cd build && make test
