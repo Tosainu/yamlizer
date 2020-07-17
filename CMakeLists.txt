@@ -5,10 +5,8 @@ project(yamlizer CXX)
 option(YAMLIZER_BUILD_EXAMPLES   "Build example files" ON)
 option(YAMLIZER_BUILD_UNIT_TESTS "Build unit tests"    ON)
 
-if(NOT LibYAML_FOUND)
-  set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_CURRENT_LIST_DIR}/cmake/Modules/")
-  find_package(LibYAML REQUIRED)
-endif()
+find_package(PkgConfig REQUIRED)
+pkg_check_modules(LibYAML REQUIRED IMPORTED_TARGET yaml-0.1)
 
 if(NOT Boost_FOUND)
   find_package(Boost 1.61.0 REQUIRED)
@@ -25,8 +23,8 @@ add_library(yaml++
   src/yamlizer/yaml++.h
 )
 target_link_libraries(yaml++
-  PRIVATE   libyaml::yaml
-  INTERFACE libyaml::yaml
+  PRIVATE   PkgConfig::LibYAML
+  INTERFACE PkgConfig::LibYAML
 )
 target_include_directories(yaml++
   PRIVATE ${PROJECT_SOURCE_DIR}/src
