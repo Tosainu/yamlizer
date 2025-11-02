@@ -27,7 +27,7 @@ jobs:
           BUILD_TYPE: ${{ matrix.build_type }}
           CXX_COMPILER: ${{ matrix.cxx_compiler }}
       - run: cmake --build build -v
-      - run: cd build && make test
+      - run: ctest --test-dir build --verbose
 
   test_macos:
     runs-on: macos-15
@@ -41,4 +41,4 @@ jobs:
 
       - run: cmake -S . -B build
       - run: cmake --build build -v
-      - run: cd build && make test
+      - run: ctest --test-dir build --verbose
